@@ -1,7 +1,11 @@
 ﻿/*
-* Foreign key columns are a special case that demands they have indexes.
-* This function searches all foreign keys in the current schema and 
-* creates indexes on all foreign keys columns.
+* @author: Justin Leto
+* @date: June 15, 2013
+*
+* description:
+* 	Foreign key columns are a special case that demands they have indexes.
+* 	This function searches all foreign keys in the current schema and 
+* 	creates indexes on all foreign keys columns.
 *
 *usage:
 *	do $$
@@ -101,6 +105,7 @@ begin
 			raise notice E'% missing foreign key indexes will be created: \n%', missing_index_count, create_index_sql;
 			/* Create missing foreign key indexes */
 			execute create_index_sql;
+			raise notice 'Indexes created successfully.';	
 		else
 			raise notice 'There are no missing foreign key indexes.';
 		end if;
@@ -110,8 +115,6 @@ begin
 			raise notice '% %', SQLERRM, SQLSTATE;
 			/* Report failure */
 			return false;
-
-		raise notice 'Indexes created successfully.';	
 	end;
 
 	/* Report success */
