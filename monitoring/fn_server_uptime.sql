@@ -10,21 +10,21 @@
 
 	do $$
 	begin
-		raise notice '%', _utility.fn_server_uptime();
+		raise notice '%', _monitoring.fn_server_uptime();
 	end $$;
 	
 */
 
-/* Check for _utility schema. If it doesn't exist, create it. */
+/* Check for _monitoring schema. If it doesn't exist, create it. */
 do $$
 begin
-	if not (SELECT exists(select schema_name FROM information_schema.schemata WHERE schema_name = '_utility'))
+	if not (SELECT exists(select schema_name FROM information_schema.schemata WHERE schema_name = '_monitoring'))
 	then
-		create Schema _utility;
+		create Schema _monitoring;
 	end if;
 end $$;
 
-create or replace function _utility.fn_server_uptime()
+create or replace function _monitoring.fn_server_uptime()
 returns interval as
 $BODY$
 declare uptime interval;
