@@ -40,7 +40,7 @@ begin
 	--users will be disconnected
 	if disconnect_users then
 		--store the result of the query
-		select count(pg_terminate_backend(procid)) into result
+		select count(pg_terminate_backend(procpid)) into result
 		from pg_stat_activity
 		where usename not in
 		(
@@ -72,7 +72,6 @@ begin
 		return true;
 		
 	end if;
-
 
 end;
 $BODY$ language plpgsql;
