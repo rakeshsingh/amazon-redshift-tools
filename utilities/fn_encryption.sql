@@ -145,14 +145,17 @@ end $$;
 */
 create or replace function _utility.fn_encrypt_with_public_key(
 	path text,
-	cleartext text,
-	ciphertext out bytea
-	) as $$
+	cleartext text
+	)
+returns bytea
+as $$
 declare pubkey_bin bytea;
+		ciphertext bytea;
 begin
 	--pass text version of public key through function
 	pubkey_bin := dearmor(_utility.fn_get_public_key(path));
 	ciphertext := pgp_pub_encrypt(cleartext, pubkey_bin);
+	return ciphertext;
 end;
 $$ language plpgsql security definer;
 
@@ -163,8 +166,7 @@ comment on function _utility.fn_encrypt_with_public_key(text,text) is 'Use the p
 /*
 * function: _utility.fn_decrypt_with_secret_key(
 *	path text
-*	ciphertext bytea,
-*	cleartext out text)
+*	ciphertext bytea)
 *
 * description:
 * Reads secret key from file on disk. Trusted language pl/pythonu is required to access file system.
@@ -172,7 +174,6 @@ comment on function _utility.fn_encrypt_with_public_key(text,text) is 'Use the p
 * parameters:
 *	path: path of the public key on the filesystem.
 *	ciphertext: the encrypted data
-*	cleartext: clear text data
 *
 */
 
@@ -209,20 +210,19 @@ end $$;
 
 create or replace function _utility.fn_decrypt_with_secret_key(
 	path text,
-	ciphertext bytea,
-	cleartext out text
-) as $$
+	ciphertext bytea
+) returns text
+as $$
 	declare secret_key_bin bytea;
+	cleartext text;
 begin
 	--pass text version of secret key through function
 	secret_key_bin := dearmor(_utility.fn_get_secret_key(path));
 	cleartext := pgp_pub_decrypt_bytea(ciphertext, secret_key_bin);
+	return cleartext;
 end;
 $$ language plpgsql security definer;
 
 revoke all on function _utility.fn_decrypt_with_secret_key(text, bytea) from public;
 
 comment on function _utility.fn_decrypt_with_secret_key(text, bytea) is 'Use the secret key read in from file specified by the [path] parameter to decrypt and return data as clear text.';
-
-/* cleanup */
-drop schema if exists _sec cascade;
