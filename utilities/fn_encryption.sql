@@ -29,17 +29,17 @@
 *
 */
 
-/* Check for _utility schema. If it doesn't exist, create it. */
+/* Check for _encrypt schema. If it doesn't exist, create it. */
 do $$
 begin
-	if not (SELECT exists(select schema_name FROM information_schema.schemata WHERE schema_name = '_utility'))
+	if not (SELECT exists(select schema_name FROM information_schema.schemata WHERE schema_name = '_encrypt'))
 	then
-		create Schema _utility;
+		create Schema _encrypt;
 	end if;
 end $$;
 
 /*
-* function: _utility.fn_get_public_key(path text)
+* function: _encrypt.fn_public_key_get(path text)
 *
 * description:
 * 	Reads public key from file on disk. Trusted language pl/pythonu is required to access file system.
@@ -56,14 +56,14 @@ declare public_key text;
 begin
 	path = 'public.key'; -- public.key is stored in the pg database data directory.
 
-	select * into public_key from _utility.fn_get_public_key(path);
+	select * into public_key from _encrypt.fn_public_key_get(path);
 	
 	raise notice 'Public key is: %', public_key;
 end $$;
 
 */
 
-create or replace function _utility.fn_get_public_key(path text)
+create or replace function _encrypt.fn_public_key_get(path text)
 returns text as
 $$
 	import os
@@ -72,13 +72,13 @@ $$
 	return open(path).read()
 $$ language plpythonu security definer;
 
-revoke all on function _utility.fn_get_public_key(text) from public;
+revoke all on function _encrypt.fn_public_key_get(text) from public;
 
-comment on function _utility.fn_get_public_key(text) is 'Reads public key from file specified by [path] parameter. Returns text of key';
+comment on function _encrypt.fn_public_key_get(text) is 'Reads public key from file specified by [path] parameter. Returns text of key';
 
 
 /*
-* function: _utility.fn_get_secret_key(path text)
+* function: _encrypt.fn_secret_key_get(path text)
 *
 * description:
 * Reads secret key from file on disk. Language pl/pythonu is required to access file system.
@@ -93,14 +93,14 @@ declare secret_key text;
 begin
 	path = 'secret.key'; -- public.key is stored in the pg database data directory.
 
-	select * into secret_key from _utility.fn_get_secret_key(path);
+	select * into secret_key from _encrypt.fn_secret_key_get(path);
 	
 	raise notice 'Secret key is: %', secret_key;
 end $$;
 
 */
 
-create or replace function _utility.fn_get_secret_key(path text)
+create or replace function _encrypt.fn_secret_key_get(path text)
 returns text as
 $$
 	import os
@@ -110,11 +110,11 @@ $$
 $$
 language plpythonu security definer;
 
-revoke all on function _utility.fn_get_secret_key(text) from public;
+revoke all on function _encrypt.fn_secret_key_get(text) from public;
 
-comment on function _utility.fn_get_secret_key(text) is 'Reads secret key from file specified by [path] parameter. Returns text of key.';
+comment on function _encrypt.fn_secret_key_get(text) is 'Reads secret key from file specified by [path] parameter. Returns text of key.';
 /*
-* function: _utility.fn_encrypt_with_public_key(
+* function: _encrypt.fn_encrypt_with_public_key(
 	path text
 	cleartext text,
 	ciphertext out bytea)
@@ -137,13 +137,13 @@ declare ciphertext bytea;
 begin
 	cleartext='Hello World.';
 
-	select * into ciphertext from _utility.fn_encrypt_with_public_key('public.key'::text, cleartext);
+	select * into ciphertext from _encrypt.fn_encrypt_with_public_key('public.key'::text, cleartext);
 
 	raise notice E'\nText to Encrypt: %;\nEncrypted text: %', cleartext::text, ciphertext::text;
 end $$;
 
 */
-create or replace function _utility.fn_encrypt_with_public_key(
+create or replace function _encrypt.fn_encrypt_with_public_key(
 	path text,
 	cleartext text
 	)
@@ -153,18 +153,18 @@ declare pubkey_bin bytea;
 		ciphertext bytea;
 begin
 	--pass text version of public key through function
-	pubkey_bin := dearmor(_utility.fn_get_public_key(path));
+	pubkey_bin := dearmor(_encrypt.fn_public_key_get(path));
 	ciphertext := pgp_pub_encrypt(cleartext, pubkey_bin);
 	return ciphertext;
 end;
 $$ language plpgsql security definer;
 
-revoke all on function _utility.fn_encrypt_with_public_key(text, text) from public;
+revoke all on function _encrypt.fn_encrypt_with_public_key(text, text) from public;
 
-comment on function _utility.fn_encrypt_with_public_key(text,text) is 'Use the public key read in from file specified by [path] parameter. Encrypt and return binary data.';
+comment on function _encrypt.fn_encrypt_with_public_key(text,text) is 'Use the public key read in from file specified by [path] parameter. Encrypt and return binary data.';
 
 /*
-* function: _utility.fn_decrypt_with_secret_key(
+* function: _encrypt.fn_decrypt_with_secret_key(
 *	path text
 *	ciphertext bytea)
 *
@@ -196,19 +196,19 @@ begin
 	  constraint encrypttest_pk primary key (id )
 	);
 
-	insert into _sec.encrypt_test (id, encrypted_data) values (1, (select * from _utility.fn_encrypt_with_public_key('public.key'::text, cleartext)));
+	insert into _sec.encrypt_test (id, encrypted_data) values (1, (select * from _encrypt.fn_encrypt_with_public_key('public.key'::text, cleartext)));
 
-	select * into ciphertext from _utility.fn_encrypt_with_public_key('public.key'::text, cleartext);
+	select * into ciphertext from _encrypt.fn_encrypt_with_public_key('public.key'::text, cleartext);
 
 	path = 'secret.key';
 	ciphertext = (select encrypted_data from _sec.encrypt_test where id = 1);
-	select * into cleartext from _utility.fn_decrypt_with_secret_key(path, (select encrypted_data from _sec.encrypt_test where id = 1) );
+	select * into cleartext from _encrypt.fn_decrypt_with_secret_key(path, (select encrypted_data from _sec.encrypt_test where id = 1) );
 
 	raise notice E'\nEncrypted text: %; \nDecrypted text: %; ', ciphertext::text, cleartext::text;
 end $$;
 */
 
-create or replace function _utility.fn_decrypt_with_secret_key(
+create or replace function _encrypt.fn_decrypt_with_secret_key(
 	path text,
 	ciphertext bytea
 ) returns text
@@ -217,12 +217,12 @@ as $$
 	cleartext text;
 begin
 	--pass text version of secret key through function
-	secret_key_bin := dearmor(_utility.fn_get_secret_key(path));
+	secret_key_bin := dearmor(_encrypt.fn_secret_key_get(path));
 	cleartext := pgp_pub_decrypt_bytea(ciphertext, secret_key_bin);
 	return cleartext;
 end;
 $$ language plpgsql security definer;
 
-revoke all on function _utility.fn_decrypt_with_secret_key(text, bytea) from public;
+revoke all on function _encrypt.fn_decrypt_with_secret_key(text, bytea) from public;
 
-comment on function _utility.fn_decrypt_with_secret_key(text, bytea) is 'Use the secret key read in from file specified by the [path] parameter to decrypt and return data as clear text.';
+comment on function _encrypt.fn_decrypt_with_secret_key(text, bytea) is 'Use the secret key read in from file specified by the [path] parameter to decrypt and return data as clear text.';
